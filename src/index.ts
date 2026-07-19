@@ -1,7 +1,6 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { AutomationServiceClient } from './automation-service-client.js';
 import { loadConfig } from './config.js';
-import { Persistence } from './database.js';
-import { DispatchManager } from './dispatch-manager.js';
 import { logger } from './logger.js';
 import { createMcpServer } from './mcp-server.js';
 import { SpaceTradersApi } from './spacetraders-api.js';
@@ -9,20 +8,18 @@ import { SpaceTradersApi } from './spacetraders-api.js';
 const main = async () => {
 	const config = loadConfig();
 
-	const persistence = new Persistence(config.dbPath);
 	const api = new SpaceTradersApi(config.apiToken, config.apiBaseUrl, {
 		maxRetries: config.maxRetries,
 		baseDelayMs: config.retryBaseMs
 	});
-	const dispatchManager = new DispatchManager(api, persistence, logger);
-	const server = createMcpServer(api, dispatchManager);
+	const automationService = new AutomationServiceClient(config.automationServiceUrl);
+	const server = createMcpServer(api, automationService);
 
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 	logger.info('SpaceTraders MCP server connected over stdio.');
 
 	const shutdown = () => {
-		persistence.close();
 		process.exit(0);
 	};
 

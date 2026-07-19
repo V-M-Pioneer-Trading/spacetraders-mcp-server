@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { DispatchManager } from './dispatch-manager.js';
+import { AutomationServiceClient } from './automation-service-client.js';
 import { SpaceTradersApi } from './spacetraders-api.js';
 
 const asJsonText = (data: unknown) => JSON.stringify(data, null, 2);
@@ -31,10 +31,10 @@ const withToolErrorHandling = <TArgs>(
 	}
 };
 
-export const createMcpServer = (api: SpaceTradersApi, dispatchManager: DispatchManager) => {
+export const createMcpServer = (api: SpaceTradersApi, automationService: AutomationServiceClient) => {
 	const server = new McpServer({
 		name: 'spacetraders-mcp-server',
-		version: '0.1.0'
+		version: '0.2.0'
 	});
 
 	server.registerTool(
@@ -170,62 +170,87 @@ export const createMcpServer = (api: SpaceTradersApi, dispatchManager: DispatchM
 		withToolErrorHandling(async ({ shipSymbol }) => ok(await api.getShipCooldown(shipSymbol)))
 	);
 
+	// meta#20: inspection + knob/replan tools reading from automation-service —
+	// the same control surface the ai-service AI supervisor (meta#19) uses, so
+	// an interactive operator can inspect and steer the live unattended fleet.
+
 	server.registerTool(
-		'create_dispatch',
+		'get_fleet_metrics',
+		{
+			description: 'Get recent fleet metrics rollups (credits/hour, extraction, error rate) from automation-service.',
+			inputSchema: {
+				rollupLimit: z.number().int().positive().max(200).optional()
+			}
+		},
+		withToolErrorHandling(async ({ rollupLimit }) => {
+			const { rollups } = await automationService.getMetricsContext(rollupLimit, 0);
+			return ok({ rollups });
+		})
+	);
+
+	server.registerTool(
+		'get_fleet_anomalies',
+		{
+			description: 'Get recent fleet anomalies (idle ships, profit drops, error rates, etc.) from automation-service.',
+			inputSchema: {
+				windowMinutes: z.number().int().positive().optional(),
+				anomalyLimit: z.number().int().positive().max(200).optional()
+			}
+		},
+		withToolErrorHandling(async ({ windowMinutes, anomalyLimit }) => {
+			const { anomalies } = await automationService.getAnomaliesDigest(windowMinutes, anomalyLimit);
+			return ok({ anomalies });
+		})
+	);
+
+	server.registerTool(
+		'get_fleet_events',
+		{
+			description: 'Get recent entries from automation-service\'s append-only event log (lifecycle, planner decisions, replans, AI interventions).',
+			inputSchema: {
+				limit: z.number().int().positive().max(1000).optional()
+			}
+		},
+		withToolErrorHandling(async ({ limit }) => ok({ events: await automationService.getEvents(limit) }))
+	);
+
+	server.registerTool(
+		'get_knobs',
+		{
+			description: 'List every planner/anomaly-detection knob (name, current value, default, and declared [min, max] bounds).'
+		},
+		withToolErrorHandling(async () => ok({ knobs: await automationService.getKnobs() }))
+	);
+
+	server.registerTool(
+		'set_knob',
 		{
 			description:
-				'Create an async dispatch job for mining, trading, or scouting. Supports dryRun for mutating intents.',
+				'Set a planner or anomaly-detection knob to a new value. Refused if the value falls outside that knob\'s declared [min, max] bounds. A successful write immediately triggers a fleet replan (automation-service re-scores every idle ship\'s assignment against the new value) — this is not an inert config change.',
 			inputSchema: {
-				type: z.enum(['mining', 'trading', 'scouting']),
-				shipSymbol: z.string().min(1),
-				dryRun: z.boolean().optional(),
-				params: z.record(z.string(), z.any()).optional()
+				name: z.string().min(1),
+				value: z.number()
 			}
 		},
-		withToolErrorHandling(async ({ type, shipSymbol, dryRun, params }) =>
-			ok(
-				dispatchManager.createDispatch({
-					type,
-					shipSymbol,
-					dryRun,
-					params
-				})
-			)
-		)
+		withToolErrorHandling(async ({ name, value }) => {
+			const knobs = await automationService.getKnobs();
+			const knob = knobs.find((k) => k.name === name);
+			if (!knob) {
+				return fail(`Unknown knob "${name}".`, { knownKnobs: knobs.map((k) => k.name) });
+			}
+			if (value < knob.min || value > knob.max) {
+				return fail(`${value} is outside ${name}'s declared bounds [${knob.min}, ${knob.max}].`);
+			}
+			return ok(await automationService.setKnob(name, value));
+		})
 	);
 
 	server.registerTool(
-		'get_dispatch_status',
+		'trigger_replan',
 		{
-			description: 'Poll status/events/result of a dispatch job.',
-			inputSchema: {
-				dispatchId: z.string().min(1)
-			}
+			description: 'Ask the fleet to re-plan its current ship assignments against the current knob values.'
 		},
-		withToolErrorHandling(async ({ dispatchId }) => ok(dispatchManager.getDispatchStatus(dispatchId)))
-	);
-
-	server.registerTool(
-		'list_dispatches',
-		{
-			description: 'List dispatch jobs.',
-			inputSchema: {
-				limit: z.number().int().positive().max(200).optional(),
-				status: z.enum(['queued', 'running', 'completed', 'failed', 'cancelled']).optional()
-			}
-		},
-		withToolErrorHandling(async ({ limit, status }) => ok(dispatchManager.listDispatches(limit, status)))
-	);
-
-	server.registerTool(
-		'cancel_dispatch',
-		{
-			description: 'Request cancellation of a running dispatch.',
-			inputSchema: {
-				dispatchId: z.string().min(1)
-			}
-		},
-		withToolErrorHandling(async ({ dispatchId }) => ok(dispatchManager.cancelDispatch(dispatchId)))
+		withToolErrorHandling(async () => ok(await automationService.triggerReplan()))
 	);
 
 	return server;
