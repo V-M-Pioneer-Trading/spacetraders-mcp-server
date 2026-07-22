@@ -106,10 +106,16 @@ describe('spacetraders-mcp-server meta#20 tools', () => {
 		await client.callTool({ name: 'get_fleet_metrics', arguments: { rollupLimit: 7 } });
 		await client.callTool({ name: 'get_fleet_anomalies', arguments: { windowMinutes: 30, anomalyLimit: 12 } });
 
-		expect(stub.receivedQueryStrings).toContainEqual({ pathname: '/autopilot/events', query: '?limit=5' });
-		expect(stub.receivedQueryStrings).toContainEqual({ pathname: '/metrics/context', query: '?rollupLimit=7' });
 		expect(stub.receivedQueryStrings).toContainEqual({
-			pathname: '/anomalies/digest',
+			pathname: '/api/automation/v1/autopilot/events',
+			query: '?limit=5'
+		});
+		expect(stub.receivedQueryStrings).toContainEqual({
+			pathname: '/api/automation/v1/metrics/context',
+			query: '?rollupLimit=7'
+		});
+		expect(stub.receivedQueryStrings).toContainEqual({
+			pathname: '/api/automation/v1/anomalies/digest',
 			query: '?windowMinutes=30&anomalyLimit=12'
 		});
 	});

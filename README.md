@@ -39,7 +39,7 @@ involved):
 - `set_knob` — set a knob to a new value; refused (without ever calling
   automation-service) if the value falls outside that knob's declared
   bounds. **A successful write immediately triggers a fleet replan** —
-  automation-service's own `PUT /planner/knobs/:name` handler does this
+  automation-service's own `PUT /api/automation/v1/planner/knobs/:name` handler does this
   unconditionally, so this is never an inert config change.
 - `trigger_replan` — ask the fleet to re-plan its current ship assignments
   against the current knob values
@@ -61,7 +61,7 @@ copy .env.example .env
 Required variables:
 
 - `SPACETRADERS_API_TOKEN` — your SpaceTraders API token (for the ship/market primitive tools)
-- `AUTOMATION_SERVICE_URL` — e.g. `http://localhost:3003` (for the fleet inspection/control tools; automation-service's admin API is unauthenticated, same posture command-interface and ai-service already rely on)
+- `AUTOMATION_SERVICE_URL` — e.g. `http://localhost:3003/api/automation/v1` (for the fleet inspection/control tools; automation-service's admin API is unauthenticated, same posture command-interface and ai-service already rely on)
 
 ## Run
 

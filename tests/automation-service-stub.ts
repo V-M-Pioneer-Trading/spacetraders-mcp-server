@@ -46,13 +46,16 @@ export function startAutomationServiceStub(initialKnobs: Knob[]): AutomationServ
 			const url = new URL(req.url ?? '/', 'http://localhost');
 			if (url.search) stub.receivedQueryStrings.push({ pathname: url.pathname, query: url.search });
 
-			if (req.method === 'GET' && url.pathname === '/planner/knobs') {
+			// Mirrors automation-service's own /api/automation/v1 mount.
+			const prefix = '/api/automation/v1';
+
+			if (req.method === 'GET' && url.pathname === `${prefix}/planner/knobs`) {
 				respondJson(res, 200, { knobs: stub.knobs });
 				return;
 			}
 
-			if (req.method === 'PUT' && url.pathname.startsWith('/planner/knobs/')) {
-				const name = decodeURIComponent(url.pathname.slice('/planner/knobs/'.length));
+			if (req.method === 'PUT' && url.pathname.startsWith(`${prefix}/planner/knobs/`)) {
+				const name = decodeURIComponent(url.pathname.slice(`${prefix}/planner/knobs/`.length));
 				const knob = stub.knobs.find((k) => k.name === name);
 				if (!knob) {
 					respondJson(res, 404, { error: { message: `unknown knob "${name}"` } });
@@ -69,23 +72,23 @@ export function startAutomationServiceStub(initialKnobs: Knob[]): AutomationServ
 				return;
 			}
 
-			if (req.method === 'POST' && url.pathname === '/planner/replan') {
+			if (req.method === 'POST' && url.pathname === `${prefix}/planner/replan`) {
 				stub.replanCalls++;
 				respondJson(res, 200, { requested: true });
 				return;
 			}
 
-			if (req.method === 'GET' && url.pathname === '/autopilot/events') {
+			if (req.method === 'GET' && url.pathname === `${prefix}/autopilot/events`) {
 				respondJson(res, 200, { events: stub.events });
 				return;
 			}
 
-			if (req.method === 'GET' && url.pathname === '/metrics/context') {
+			if (req.method === 'GET' && url.pathname === `${prefix}/metrics/context`) {
 				respondJson(res, 200, { rollups: [], events: stub.events });
 				return;
 			}
 
-			if (req.method === 'GET' && url.pathname === '/anomalies/digest') {
+			if (req.method === 'GET' && url.pathname === `${prefix}/anomalies/digest`) {
 				respondJson(res, 200, { anomalies: stub.anomalies, events: [] });
 				return;
 			}
@@ -96,7 +99,7 @@ export function startAutomationServiceStub(initialKnobs: Knob[]): AutomationServ
 
 	server.listen(0);
 	const { port } = server.address() as AddressInfo;
-	stub.url = `http://localhost:${port}`;
+	stub.url = `http://localhost:${port}/api/automation/v1`;
 	stub.close = () => new Promise((resolve) => server.close(() => resolve()));
 
 	return stub;
