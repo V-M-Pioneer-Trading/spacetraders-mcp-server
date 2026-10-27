@@ -10,11 +10,11 @@ How heinzelwerk agents work in this repo. Mode rules (single repo vs workspace) 
   2. `npm run lint --silent` (it is `tsc --noEmit`; no ESLint here)
   3. `npm run build --silent`
   4. `npx vitest run --reporter=dot`
-- **Security**: gitleaks pre-commit hook (`gitleaks git --pre-commit --staged` in `.git/hooks/pre-commit`, so every worktree runs it) · dependency audit in checks
+- **Security**: no secret scan runs yet: gitleaks is not installed and no pre-commit hook exists (planned: `gitleaks git --pre-commit --staged` in `.git/hooks/pre-commit`), so check every diff for secrets by eye · dependency audit in checks
 - **Coding standards**: none written: smell baseline only
 - **Risk areas** (validator reviews diffs touching these on Opus):
   - `set_knob`, `trigger_replan`: a successful write replans the live fleet immediately; bounds are checked before the call
-  - ship-action tools calling SpaceTraders directly with `SPACETRADERS_API_TOKEN`: they bypass st-gateway's rate budget
+  - ship-action tools calling SpaceTraders directly with `SPACETRADERS_API_TOKEN`: they bypass st-gateway's rate budget; `purchase_cargo` and `sell_cargo` move credits with no agent-service history and no Clerk auth
 - **Contracts**:
   - consumer of automation-service fleet / knob / replan routes (stub in `tests/automation-service-stub.ts`)
   - consumer of the SpaceTraders API; client generated from `../spacetraders-api-docs/reference/SpaceTraders.json` by `npm run generate:client`
