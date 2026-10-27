@@ -13,5 +13,9 @@ MCP server for interactive operators (Claude, IDEs): SpaceTraders ship and marke
 
 - `npm run lint` is `tsc --noEmit`. `generate:client` uses Windows backslash paths.
 - `set_knob` checks bounds before the call; a successful write replans immediately.
-- automation-service's admin API is unauthenticated from here.
+- The automation client sends no Authorization. automation-service now requires `planner:advise` on knob writes and replans and `events:write` on `POST /events`, so `set_knob` and `trigger_replan` get 401 from a current automation-service; reads still work. `tests/automation-service-stub.ts` checks no Authorization, so tests stay green.
 - No CI. Copy `.env.example` to `.env` before running.
+
+## Reference docs
+
+- `README.md` "Tools", "Setup": read when adding or auditing a tool, or configuring the server.

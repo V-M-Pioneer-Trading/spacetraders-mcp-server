@@ -2,7 +2,7 @@
 
 How heinzelwerk agents work in this repo. Mode rules (single repo vs workspace) live in the `heinzelwerk:team-modes` skill. This file holds only what is specific to this repo.
 
-- **Role**: backend (Node / TS ESM / MCP SDK). MCP tools for interactive operators; run locally, never deployed
+- **Role**: backend (Node / TS ESM / MCP SDK). MCP tools for interactive operators; run locally, never deployed. **Not in active development**: work here only when a ticket names this repo
 - **Backend paths**: `src/`, `tests/`
 - **Worktree setup**: `npm ci --no-audit --no-fund`
 - **Checks** (validator runs every one, in order; this repo has no CI):
