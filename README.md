@@ -58,6 +58,8 @@ npm install
 copy .env.example .env
 ```
 
+Correction (2026-10-29): nothing loads `.env` (no dotenv, `tsx`/`node` run without `--env-file`); config parses `process.env` only, so set the variables in the environment, see src/config.ts:25 and package.json:9-10.
+
 Required variables:
 
 - `SPACETRADERS_API_TOKEN` — your SpaceTraders API token (for the ship/market primitive tools)

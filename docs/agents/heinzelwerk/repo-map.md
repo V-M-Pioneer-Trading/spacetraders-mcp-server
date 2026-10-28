@@ -3,12 +3,12 @@
 Verified against origin/main 2310229 on 2026-10-28. Facts only, each with its evidence (`path:line`). Sections: 1 purpose, 2 entry points, 3 unauthenticated, 4 money, 5 calls in/out, 6 build/run, 7 CI, 8 persistence, 9 patterns, 10 traps, 11 docs.
 
 1. Purpose: stdio MCP server exposing SpaceTraders ship/market tools + automation-service inspect/knob/replan tools (src/index.ts:11-19, src/mcp-server.ts:34-38, README.md:3-8).
-2. Entry points = 17 MCP tools over stdio (no HTTP routes, no auth layer; any stdio client may call all; src/index.ts:18-19). SpaceTraders tools use Bearer SPACETRADERS_API_TOKEN (src/spacetraders-api.ts:50). Lines in src/mcp-server.ts:
+2. Entry points = 18 MCP tools over stdio (12 SpaceTraders + 6 automation-service; 18 registerTool calls, src/mcp-server.ts:40-248; no HTTP routes, no auth layer; any stdio client may call all; src/index.ts:18-19). SpaceTraders tools use Bearer SPACETRADERS_API_TOKEN (src/spacetraders-api.ts:50). Lines in src/mcp-server.ts:
  - read: get_agent :40, list_ships :48, get_ship :56, get_market :148, get_ship_cooldown :162
  - write (SpaceTraders): navigate_ship :65 (POST .../navigate; description :68 claims warp but code calls navigateShip only, warpShip unused, src/spacetraders-api.ts:138,145), dock_ship :79, orbit_ship :88, refuel_ship :97, extract_resources :109, purchase_cargo :118, sell_cargo :133
  - automation-service read: get_fleet_metrics :177, get_fleet_anomalies :191, get_fleet_events :206, get_knobs :217
  - automation-service write: set_knob :225 (PUT /planner/knobs/:name, auto-triggers replan per description :229), trigger_replan :248 (POST /planner/replan)
-3. Unauthenticated: automation-service calls send no auth header (src/automation-service-client.ts:45-62,75-79; src/config.ts:11-13; README.md:64). stdio itself has no auth.
+3. Unauthenticated: automation-service calls send no auth header (src/automation-service-client.ts:45-62,75-79; src/config.ts:11-13; README.md:66). stdio itself has no auth.
 4. Money: purchase_cargo POST /my/ships/:s/purchase (src/spacetraders-api.ts:181), sell_cargo POST .../sell (:189), refuel_ship POST .../refuel (:162; units optional -> full tank, :166): spend/earn game credits. navigate_ship burns fuel (:138). No cap/confirm on units (src/mcp-server.ts:103,125,140). No paid external APIs (deps: package.json:18-23).
  - Path injection: shipSymbol/systemSymbol/waypointSymbol interpolated into URL unencoded (src/spacetraders-api.ts:124,139,153,182,200), zod only checks min(1) (src/mcp-server.ts:70). A "../" shipSymbol on a POST tool can reach other /my/* endpoints (e.g. contract accept) with the token. Knob name IS encoded (src/automation-service-client.ts:75).
  - Unused generated client src/generated/services/* (openapi-typescript-codegen) contains ship purchase/contract calls but nothing imports it (grep src/tests; tsconfig.json:14 excludes it).
@@ -26,4 +26,8 @@ Verified against origin/main 2310229 on 2026-10-28. Facts only, each with its ev
  - Only get_agent faked in tests; SpaceTraders tools untested (tests/mcp-server.test.ts:8-10).
  - strict:false (tsconfig.json:8). Server version 0.2.0 vs package 1.0.0 (src/mcp-server.ts:37, package.json:3).
  - set_knob TOCTOU between getKnobs and PUT (src/mcp-server.ts:236-244).
-11. Docs: README.md (tool list :19-45, setup :47, run :66, regenerate client :79, validate :91). No CLAUDE.md/docs/ (git ls-files).
+11. Docs: README.md (tool list :19-45, setup :47, run :68, regenerate client :81, validate :93). No CLAUDE.md/docs/ (git ls-files).
+
+## Reference docs
+
+- README.md: read when adding or changing a tool (Tools list: 12 SpaceTraders primitives + 6 automation-service tools).
